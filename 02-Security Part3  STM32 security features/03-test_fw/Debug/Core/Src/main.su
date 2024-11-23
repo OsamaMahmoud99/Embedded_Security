@@ -1,0 +1,7 @@
+main.c:60:49:protected_function	16	static
+main.c:68:49:Toggle_led	16	static
+main.c:83:5:main	40	static,ignoring_inline_asm
+main.c:149:6:SystemClock_Config	232	static
+main.c:204:13:MX_USART2_UART_Init	8	static
+main.c:239:13:MX_GPIO_Init	48	static
+main.c:275:6:Error_Handler	4	static
