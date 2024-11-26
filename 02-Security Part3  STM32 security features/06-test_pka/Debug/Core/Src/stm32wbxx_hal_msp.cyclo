@@ -1,0 +1,5 @@
+../Drivers/STM32WBxx_HAL_Driver/Inc/stm32wbxx_ll_bus.h:744:22:LL_AHB3_GRP1_EnableClock	1
+../Drivers/STM32WBxx_HAL_Driver/Inc/stm32wbxx_ll_bus.h:798:22:LL_AHB3_GRP1_DisableClock	1
+../Core/Src/stm32wbxx_hal_msp.c:64:6:HAL_MspInit	1
+../Core/Src/stm32wbxx_hal_msp.c:84:6:HAL_PKA_MspInit	2
+../Core/Src/stm32wbxx_hal_msp.c:107:6:HAL_PKA_MspDeInit	2
