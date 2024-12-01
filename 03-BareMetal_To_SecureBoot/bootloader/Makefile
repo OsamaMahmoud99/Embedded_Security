@@ -59,6 +59,7 @@ CSTD		?= -std=c99
 
 OBJS		+= $(SRC_DIR)/$(BINARY).o
 OBJS        += $(SRC_DIR)/comms.o
+OBJS        += $(SRC_DIR)/bl_flash.o
 OBJS        += $(SHARED_SRC_DIR)/core/crc.o
 OBJS        += $(SHARED_SRC_DIR)/core/uart.o
 OBJS        += $(SHARED_SRC_DIR)/core/system.o

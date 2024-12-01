@@ -21,4 +21,4 @@ src/bootloader.o: src/bootloader.c inc/common-defines.h \
  ../libopencm3/include/libopencm3/stm32/common/gpio_common_f234.h \
  ../libopencm3/include/libopencm3/stm32/common/gpio_common_all.h \
  ../shared/inc/core/uart.h ../shared/inc/core/system.h inc/comms.h \
- inc/common-defines.h
+ inc/common-defines.h inc/bl_flash.h
