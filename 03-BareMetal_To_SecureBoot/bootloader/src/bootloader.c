@@ -6,6 +6,7 @@
 
 #include "core/uart.h"
 #include "core/system.h"
+#include "core/simple_timer.h"
 #include "comms.h"
 #include "bl_flash.h"
 
@@ -42,22 +43,37 @@ int main(void){
     };
     packet.crc = comms_compute_crc(&packet);
  */
-    uint8_t data[1024] = {0};
+    /*uint8_t data[1024] = {0};
     for(uint16_t i=0; i<1024; i++){
         data[i] = i & 0xff;
-    }
+    }*/
 
-    bl_flash_erase_main_application();
+    /*bl_flash_erase_main_application();
     bl_flash_write(0x08008000, data , 1024);
     bl_flash_write(0x0800C000, data , 1024);
     bl_flash_write(0x08010000, data , 1024);
     bl_flash_write(0x08020000, data , 1024);
     bl_flash_write(0x08040000, data , 1024);
-    bl_flash_write(0x08060000, data , 1024);
+    bl_flash_write(0x08060000, data , 1024);*/
+    
+    simple_timer_t timer;
+    simple_timer_t timer2;
+    simple_timer_setup(&timer, 1000, false);
+    simple_timer_setup(&timer2, 2000, true);
+
     while(true){
         /*comms_update();
         comms_write(&packet);
         system_delay(500);*/
+
+        if(simple_timer_has_elapsed(&timer)){
+            volatile int x = 0;
+            x++;
+        }
+
+        if(simple_timer_has_elapsed(&timer2)){
+            simple_timer_reset(&timer);
+        }
     }
     jump_to_main();
 
