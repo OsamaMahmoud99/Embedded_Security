@@ -1,6 +1,4 @@
-# Bare Metal Series
 
-- [Series Playlist](https://www.youtube.com/playlist?list=PLP29wDx6QmW7HaCrRydOnxcy8QmW0SNdQ)
 
 ## About the project
 
@@ -72,6 +70,6 @@ Once your drivers and debugging tools are installed, you can use the "ST-Link: D
 
 During your first blinky debug-run, you may happen to find yourself in an infinite loop in the `blocking_handler()`, which is a weak implementation of the `hard_fault_handler()`. 
 
-Hard faults usually occur if there is incorrect memory address handling, among other things. It is very likely that your linkerscript.ld has incorrect memory details. The STM32F401RET6 used in the series has `512 KiB` of flash memory and `96 KiB` of SRAM. Your board may not have the same specs. These incorrect details are then passed on to the `reset_handler()`. It is the first function that is called by the mcu at boot, and it ends up assigning unavailable memory addresses to it's local pointer variables, leading to a hard fault.
+Hard faults usually occur if there is incorrect memory address handling, among other things. It is very likely that your linkerscript.ld has incorrect memory details. The STM32F446RE used in the series has `512 KiB` of flash memory and `96 KiB` of SRAM. Your board may not have the same specs. These incorrect details are then passed on to the `reset_handler()`. It is the first function that is called by the mcu at boot, and it ends up assigning unavailable memory addresses to it's local pointer variables, leading to a hard fault.
 
 **Solution**: Simply edit the `ORIGIN` and `LENGTH` details of the `rom` (Flash) and `ram` (SRAM) in the linkerscript, as per your datasheet. Most STM32 Nucleo Boards have the same `ORIGIN`, or starting memory addresses for these memories, but you can get this information from the memory map, also available in the datasheet.
