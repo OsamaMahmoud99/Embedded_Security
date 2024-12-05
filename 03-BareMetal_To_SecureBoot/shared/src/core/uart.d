@@ -19,5 +19,5 @@
  ../libopencm3/include/libopencm3/stm32/common/usart_common_f24.h \
  ../libopencm3/include/libopencm3/stm32/common/usart_common_f124.h \
  ../libopencm3/include/libopencm3/stm32/common/usart_common_all.h \
- ../shared/inc/core/uart.h ../shared/inc/core/ring_buffer.h \
- inc/common-defines.h
+ ../shared/inc/core/uart.h inc/common-defines.h \
+ ../shared/inc/core/ring-buffer.h

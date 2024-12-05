@@ -48,7 +48,6 @@ const crc8 = (data: Buffer | Array<number>) => {
         crc = (crc << 1) & 0xff;
       }
     }
-    console.log(`0x${byte.toString(16)} 0x${crc.toString(16)}`);
   }
 
   return crc;
@@ -171,22 +170,30 @@ uart.on('data', data => {
 
     // Need retransmission?
     if (packet.crc !== computedCrc) {
-      console.log(`CRC failed, computed 0x${computedCrc.toString(16)}, got 0x${packet.crc.toString(16)}`);
+      // console.log(`CRC failed, computed 0x${computedCrc.toString(16)}, got 0x${packet.crc.toString(16)}`);
       writePacket(Packet.retx);
-      return;
+      continue;
     }
 
     // Are we being asked to retransmit?
     if (packet.isRetx()) {
-      console.log(`Retransmitting last packet`);
-      console.log(`Last packet:`, lastPacket);
+      // console.log(`Retransmitting last packet`);
+      // console.log(`Last packet:`, lastPacket);
       writePacket(lastPacket);
-      return;
+      continue;
     }
 
     // If this is an ack, move on
     if (packet.isAck()) {
-      return;
+      continue;
+    }
+
+    // If this is an nack, exit the program
+    if (packet.isSingleBytePacket(BL_PACKET_NACK_DATA0)) {
+      Logger.error('Received NACK. Exiting...');
+      // console.log('packets', packets);
+      // console.log('uart buffer', rxBuffer);
+      process.exit(1);
     }
 
     // Otherwise write the packet in to the buffer, and send an ack
@@ -196,22 +203,125 @@ uart.on('data', data => {
 });
 
 // Function to allow us to await a packet
-const waitForPacket = async () => {
+const waitForPacket = async (timeout = DEFAULT_TIMEOUT) => {
   let timeWaited = 0;
   while (packets.length < 1) {
     await delay(1);
+    timeWaited += 1;
+
+    if (timeWaited >= timeout) {
+      throw Error('Timed out waiting for packet');
+    }
   }
-  const packet = packets[0];
-  packets = packets.slice(1);
-  return packet;
+  return packets.splice(0, 1)[0];
+}
+
+const waitForSingleBytePacket = (byte: number, timeout = DEFAULT_TIMEOUT) => (
+  waitForPacket(timeout)
+    .then(packet => {
+      if (packet.length !== 1 || packet.data[0] !== byte) {
+        const formattedPacket = [...packet.toBuffer()].map(x => x.toString(16)).join(' ');
+        throw new Error(`Unexpected packet received. Expected single byte 0x${byte.toString(16)}), got packet ${formattedPacket}`);
+      }
+    })
+    .catch((e: Error) => {
+      Logger.error(e.message);
+      console.log(rxBuffer);
+      console.log(packets);
+      process.exit(1);
+    })
+);
+
+const syncWithBootloader = async (syncDelay = 500, timeout = DEFAULT_TIMEOUT) => {
+  let timeWaited = 0;
+
+  while (true) {
+    uart.write(SYNC_SEQ);
+    await delay(syncDelay);
+    timeWaited += syncDelay;
+
+    if (packets.length > 0) {
+      const packet = packets.splice(0, 1)[0];
+      if (packet.isSingleBytePacket(BL_PACKET_SYNC_OBSERVED_DATA0)) {
+        return;
+      }
+      Logger.error('Wrong packet observed during sync sequence');
+      process.exit(1);
+    }
+
+    if (timeWaited >= timeout) {
+      Logger.error('Timed out waiting for sync sequence observed');
+      process.exit(1);
+    }
+  }
 }
 
 // Do everything in an async function so we can have loops, awaits etc
 const main = async () => {
-  console.log('waiting for packet...');
-  const packet = await waitForPacket();
-  console.log(packet);
+  if (process.argv.length < 3) {
+    console.log("usage: fw-updater <signed firmware>");
+    process.exit(1);
+  }
+  const firmwareFilename = process.argv[2];
+
+  Logger.info('Reading the firmware image...');
+  const fwImage = await fs.readFile(path.join(process.cwd(), firmwareFilename));
+  const fwLength = fwImage.length;
+  Logger.success(`Read firmware image (${fwLength} bytes)`);
+
+  Logger.info('Attempting to sync with the bootloader');
+  await syncWithBootloader();
+  Logger.success('Synced!');
+
+  Logger.info('Requesting firmware update');
+  const fwUpdatePacket = Packet.createSingleBytePacket(BL_PACKET_FW_UPDATE_REQ_DATA0);
+  writePacket(fwUpdatePacket);
+  await waitForSingleBytePacket(BL_PACKET_FW_UPDATE_RES_DATA0);
+  Logger.success('Firmware update request accepted');
+
+  Logger.info('Waiting for device ID request');
+  await waitForSingleBytePacket(BL_PACKET_DEVICE_ID_REQ_DATA0);
+  Logger.success('Device ID request recieved');
+
+  const deviceId = fwImage[FWINFO_DEVICE_ID_OFFSET];
+  const deviceIDPacket = new Packet(2, Buffer.from([BL_PACKET_DEVICE_ID_RES_DATA0, deviceId]));
+  writePacket(deviceIDPacket);
+  Logger.info(`Responding with device ID 0x${deviceId.toString(16)}`);
+
+  Logger.info('Waiting for firmware length request');
+  await waitForSingleBytePacket(BL_PACKET_FW_LENGTH_REQ_DATA0);
+  Logger.success('Firmware length request recieved');
+
+  const fwLengthPacketBuffer = Buffer.alloc(5);
+  fwLengthPacketBuffer[0] = BL_PACKET_FW_LENGTH_RES_DATA0;
+  fwLengthPacketBuffer.writeUInt32LE(fwLength, 1);
+  const fwLengthPacket = new Packet(5, fwLengthPacketBuffer);
+  writePacket(fwLengthPacket);
+  Logger.info('Responding with firmware length');
+
+  Logger.info('Waiting for a few seconds for main application to be erased...');
+  await delay(1000);
+  Logger.info('Waiting for a few seconds for main application to be erased...');
+  await delay(1000);
+  Logger.info('Waiting for a few seconds for main application to be erased...');
+  await delay(1000);
+
+  let bytesWritten = 0;
+  while (bytesWritten < fwLength) {
+    await waitForSingleBytePacket(BL_PACKET_READY_FOR_DATA_DATA0);
+
+    const dataBytes = fwImage.slice(bytesWritten, bytesWritten + PACKET_DATA_BYTES);
+    const dataLength = dataBytes.length;
+    const dataPacket = new Packet(dataLength - 1, dataBytes);
+    writePacket(dataPacket);
+    bytesWritten += dataLength;
+
+    Logger.info(`Wrote ${dataLength} bytes (${bytesWritten}/${fwLength})`);
+  }
+
+  await waitForSingleBytePacket(BL_PACKET_UPDATE_SUCCESSFUL_DATA0);
+  Logger.success("Firmware update complete!");
 }
 
-main();
- 
+main()
+  .finally(() => uart.close());

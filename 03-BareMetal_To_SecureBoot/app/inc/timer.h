@@ -2,6 +2,6 @@
 #define INC_TIMER_H
 
 void timer_setup(void);
-void timer_pmw_set_duty_cycle(float duty_cycle);
+void timer_pwm_set_duty_cycle(float duty_cycle);
 
-#endif
+#endif // INC_TIMER_H

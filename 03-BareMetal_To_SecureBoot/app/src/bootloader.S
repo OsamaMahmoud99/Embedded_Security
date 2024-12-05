@@ -1,3 +1,3 @@
 
-.section  .bootloader_sction
-    .incbin "../bootloader/bootloader.bin"
+.section .bootloader_section
+  .incbin "../bootloader/bootloader.bin"
